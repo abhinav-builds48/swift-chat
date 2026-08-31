@@ -32,7 +32,6 @@ const allowedOrigins = [
   "http://localhost:5175",
   "http://localhost:4000",
   "https://swifty-chatty-appy.onrender.com",
-  "https://swift-chat-eta.vercel.app",
 ];
 
 const corsOptions = {
@@ -55,9 +54,6 @@ app.use(cors(corsOptions));
 // API routes
 app.use("/api/user", userRoute);
 app.use("/api/avatar", avatarRoute);
-
-// Serve frontend production build
-app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
 
 
 // Start server
