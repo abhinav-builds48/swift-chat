@@ -35,9 +35,13 @@ const Login = () => {
       console.log("Login URL:", url);
       console.log("Login data:", data);
 
-      const response = await axios.post(url, data, {
-        withCredentials: true,
-      });
+      const response = await axios.post(
+        `${baseUrl}/api/user/login`,
+        data,
+        {
+            withCredentials: true,
+         }
+    );
 
       console.log("Login response:", response.data);
 
