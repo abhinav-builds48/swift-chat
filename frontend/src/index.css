@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-dark: #131313;
+  --color-background: #202329;
+  --color-primary: #3f4654;
+  --color-primarySecond: #6B8AFD;
+  --color-secondary: #30E0A1;
+  --color-tertiary: #EB7050;
+}
+
+body {
+  margin: 0;
+  font-family: 'Archivo', sans-serif;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
