@@ -9,7 +9,7 @@ console.log("EMAIL_USER:", process.env.EMAIL_USER);
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const path = require("path");
+//const path = require("path");
 
 const app = express();
 
@@ -59,16 +59,16 @@ app.use("/api/avatar", avatarRoute);
 app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
 
 // Frontend fallback
-app.get("/{*splat}", (req, res) => {
-  res.sendFile(
-    path.join(__dirname, "..", "frontend", "dist", "index.html"),
-    (err) => {
-      if (err) {
-        console.error("Error sending file:", err);
-      }
-    }
-  );
-});
+// # app.get("/{*splat}", (req, res) => {
+//   res.sendFile(
+//     path.join(__dirname, "..", "frontend", "dist", "index.html"),
+//     (err) => {
+//       if (err) {
+//         console.error("Error sending file:", err);
+//       }
+//     }
+//   );
+// });
 
 // Start server
 const port = process.env.PORT || 4000;
