@@ -31,9 +31,8 @@ const allowedOrigins = [
   "http://localhost:5174",
   "http://localhost:5175",
   "http://localhost:4000",
-  "https://swifty-chatty-appy.onrender.com",
+  "https://swift-chat-eta.vercel.app",
 ];
-
 const corsOptions = {
   origin: (origin, callback) => {
     console.log("Request Origin:", origin);

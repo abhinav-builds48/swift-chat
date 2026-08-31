@@ -1,3 +1,4 @@
+import { baseUrl } from "../../apiConfig";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
@@ -23,33 +24,36 @@ const Login = () => {
     if (isAuthenticated) {
       navigate("/");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const url = "/api/user/login";
+      const url = `${baseUrl}/api/user/login`;;
 
-      console.log(data);
+      console.log("Login URL:", url);
+      console.log("Login data:", data);
 
       const response = await axios.post(url, data, {
         withCredentials: true,
       });
 
-      console.log(response.message);
+      console.log("Login response:", response.data);
 
       if (response.status === 200) {
-        toast.success(response.message);
+        toast.success(response.data.message || "Login successful");
         setAuthenticated(true);
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.status >= 400 &&
-        error.response.status <= 500
-      ) {
-        toast.error(error.response.data.message);
+      console.error("Login error:", error);
+
+      if (error.response) {
+        toast.error(
+          error.response.data?.message || "Login failed"
+        );
+      } else {
+        toast.error("Unable to connect to server");
       }
     }
   };
@@ -59,6 +63,7 @@ const Login = () => {
       <div className="flex flex-col items-center justify-center px-6 py-8 mx-auto md:h-screen lg:py-0">
         <div className="w-full rounded-lg shadow border md:mt-0 sm:max-w-md xl:p-0 bg-gray-800 border-gray-700">
           <div className="p-6 space-y-4 md:space-y-6 sm:p-8">
+
             <h1 className="text-xl font-bold leading-tight tracking-tight md:text-2xl text-white">
               Sign in to your account
             </h1>
@@ -67,6 +72,7 @@ const Login = () => {
               className="space-y-4 md:space-y-6"
               onSubmit={handleSubmit}
             >
+
               <div>
                 <label
                   htmlFor="email"
@@ -108,6 +114,7 @@ const Login = () => {
               </div>
 
               <div className="flex items-center justify-between">
+
                 <div className="flex items-start">
                   <div className="flex items-center h-5">
                     <input
@@ -115,7 +122,6 @@ const Login = () => {
                       aria-describedby="remember"
                       type="checkbox"
                       className="w-4 h-4 border rounded focus:ring-3 bg-gray-700 border-gray-600 ring-offset-gray-800"
-                      required
                     />
                   </div>
 
@@ -129,12 +135,13 @@ const Login = () => {
                   </div>
                 </div>
 
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="text-sm font-medium hover:underline text-indigo-400"
                 >
                   Forgot password?
-                </a>
+                </Link>
+
               </div>
 
               <button
@@ -146,13 +153,16 @@ const Login = () => {
 
               <p className="text-sm font-light text-gray-400 hover:underline hover:text-primarySecond">
                 Don’t have an account yet?{" "}
+
                 <Link
                   to="/register"
                   className="font-medium"
                 >
                   Sign up
                 </Link>
+
               </p>
+
             </form>
           </div>
         </div>
