@@ -1,13 +1,17 @@
 // ChatHome.jsx
+
 import React, { useEffect, useState } from "react";
 import { useProfile } from "../context/profileContext";
 import axios from "axios";
+
 import ChatMessages from "../components/Chat/ChatMessages";
 import MessageInputForm from "../components/Chat/MessageInputForm";
 import Nav from "../components/Chat/Nav";
 import OnlineUsersList from "../components/Chat/OnlineUserList";
 import TopBar from "../components/Chat/TopBar";
-import { socketUrl } from "../../apiConfig";
+
+import { baseUrl, socketUrl } from "../../apiConfig";
+
 import { useAuth } from "../context/authContext";
 import { useNavigate } from "react-router-dom";
 
@@ -18,151 +22,247 @@ const ChatHome = () => {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+
   const { userDetails } = useProfile();
-  const { isAuthenticated, checkAuth } = useAuth();
+
+  const {
+    isAuthenticated,
+    checkAuth,
+    loading,
+  } = useAuth();
+
   const navigate = useNavigate();
-  const connectToWebSocket = () => {
-    const ws = new WebSocket(socketUrl);
-    ws.addEventListener("message", handleMessage);
-    setWs(ws);
-  };
+
+  // -----------------------------
+  // WebSocket connection
+  // -----------------------------
   useEffect(() => {
-    connectToWebSocket();
-    ws?.addEventListener("close", () => {
-      connectToWebSocket();
+    if (!userDetails) return;
+
+    const socket = new WebSocket(socketUrl);
+
+    socket.addEventListener("open", () => {
+      console.log("WebSocket connected:", socketUrl);
     });
-  }, [userDetails, selectedUserId]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedUserId) {
-        try {
-          const res = await axios.get(`/api/user/messages/${selectedUserId}`);
-          setMessages(res.data);
-        } catch (error) {
-          console.error("Error fetching messages:", error);
-        }
-      }
-    };
+    socket.addEventListener("message", handleMessage);
 
-    fetchData();
-  }, [selectedUserId]);
-
-  useEffect(() => {
-    axios.get("/api/user/people").then((res) => {
-      // console.log(res.data);
-      const offlinePeopleArr = res?.data
-        .filter((p) => p._id !== userDetails?._id)
-        .filter((p) => !onlinePeople[p._id]);
-
-      const offlinePeopleWithAvatar = offlinePeopleArr.map((p) => ({
-        ...p,
-        avatarLink: p.avatarLink, // assuming avatarLink is a property of p
-      }));
-
-      setOfflinePeople(
-        offlinePeopleWithAvatar.reduce((acc, p) => {
-          acc[p._id] = p;
-          return acc;
-        }, {})
-      );
+    socket.addEventListener("error", (error) => {
+      console.error("WebSocket error:", error);
     });
-  }, [onlinePeople, userDetails]);
 
-  useEffect(() => {
-    const handleRealTimeMessage = (event) => {
-      const messageData = JSON.parse(event.data);
+    socket.addEventListener("close", () => {
+      console.log("WebSocket disconnected");
+    });
 
-      if ("text" in messageData) {
-        setMessages((prev) => [...prev, { ...messageData }]);
-      }
-    };
-
-    // Add event listener for real-time messages
-    if (ws) {
-      ws.addEventListener("message", handleRealTimeMessage);
-    }
+    setWs(socket);
 
     return () => {
-      // Remove the event listener when component unmounts
-      if (ws) {
-        ws.removeEventListener("message", handleRealTimeMessage);
+      socket.close();
+    };
+  }, [userDetails]);
+
+  // -----------------------------
+  // Authentication
+  // -----------------------------
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      console.log("User not authenticated. Redirecting...");
+      navigate("/login");
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  // -----------------------------
+  // Fetch offline users
+  // -----------------------------
+  useEffect(() => {
+    const fetchPeople = async () => {
+      try {
+        const res = await axios.get(
+          `${baseUrl}/api/user/people`,
+          {
+            withCredentials: true,
+          }
+        );
+
+        const people = res.data || [];
+
+        const offlinePeopleArr = people
+          .filter((p) => p._id !== userDetails?._id)
+          .filter((p) => !onlinePeople[p._id]);
+
+        const offlinePeopleWithAvatar = offlinePeopleArr.map((p) => ({
+          ...p,
+          avatarLink: p.avatarLink,
+        }));
+
+        const offlinePeopleObject =
+          offlinePeopleWithAvatar.reduce((acc, p) => {
+            acc[p._id] = p;
+            return acc;
+          }, {});
+
+        setOfflinePeople(offlinePeopleObject);
+      } catch (error) {
+        console.error(
+          "Error fetching people:",
+          error.response?.data || error.message
+        );
       }
     };
-  }, [ws, selectedUserId]);
 
+    if (userDetails && isAuthenticated) {
+      fetchPeople();
+    }
+  }, [userDetails, onlinePeople, isAuthenticated]);
+
+  // -----------------------------
+  // Fetch messages
+  // -----------------------------
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!selectedUserId) return;
+
+      try {
+        const res = await axios.get(
+          `${baseUrl}/api/user/messages/${selectedUserId}`,
+          {
+            withCredentials: true,
+          }
+        );
+
+        setMessages(res.data);
+      } catch (error) {
+        console.error(
+          "Error fetching messages:",
+          error.response?.data || error.message
+        );
+      }
+    };
+
+    fetchMessages();
+  }, [selectedUserId]);
+
+  // -----------------------------
+  // Handle WebSocket messages
+  // -----------------------------
+  const handleMessage = (ev) => {
+    try {
+      const messageData = JSON.parse(ev.data);
+
+      if ("online" in messageData) {
+        showOnlinePeople(messageData.online);
+      }
+
+      if ("text" in messageData) {
+        if (messageData.sender === selectedUserId) {
+          setMessages((prev) => [
+            ...prev,
+            messageData,
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Error processing WebSocket message:",
+        error
+      );
+    }
+  };
+
+  // -----------------------------
+  // Show online people
+  // -----------------------------
   const showOnlinePeople = (peopleArray) => {
     const people = {};
-    peopleArray.forEach(({ userId, username, avatarLink }) => {
-      if (userId !== userDetails?._id) {
-        people[userId] = {
-          username,
-          avatarLink, // include avatarLink for online users
-        };
+
+    peopleArray.forEach(
+      ({ userId, username, avatarLink }) => {
+        if (userId !== userDetails?._id) {
+          people[userId] = {
+            username,
+            avatarLink,
+          };
+        }
       }
-    });
+    );
 
     setOnlinePeople(people);
   };
 
-  const handleMessage = (ev) => {
-    const messageData = JSON.parse(ev.data);
-    if ("online" in messageData) {
-      showOnlinePeople(messageData.online);
-    } else if ("text" in messageData) {
-      if (messageData.sender === selectedUserId) {
-        setMessages((prev) => [...prev, { ...messageData }]);
-      }
-    }
-  };
-
+  // -----------------------------
+  // Send message
+  // -----------------------------
   const sendMessage = (ev) => {
-    if (ev) ev.preventDefault();
-    console.log("sending message");
-    console.log(newMessage, selectedUserId);
-    ws.send(JSON.stringify({ text: newMessage, recipient: selectedUserId }));
-    setNewMessage("");
+    if (ev) {
+      ev.preventDefault();
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.error("WebSocket is not connected.");
+      return;
+    }
+
+    if (!newMessage.trim() || !selectedUserId) {
+      return;
+    }
+
+    console.log("Sending message...");
+    console.log("Message:", newMessage);
+    console.log("Recipient:", selectedUserId);
+
+    ws.send(
+      JSON.stringify({
+        text: newMessage,
+        recipient: selectedUserId,
+      })
+    );
+
     setMessages((prev) => [
       ...prev,
       {
         text: newMessage,
-        sender: userDetails._id,
+        sender: userDetails?._id,
         recipient: selectedUserId,
         _id: Date.now(),
       },
     ]);
+
+    setNewMessage("");
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (selectedUserId) {
-        try {
-          const res = await axios.get(`/api/user/messages/${selectedUserId}`);
-          setMessages(res.data);
-        } catch (error) {
-          console.error("Error fetching messages:", error);
-        }
-      }
-    };
+  // -----------------------------
+  // Loading screen
+  // -----------------------------
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center text-white">
+        Checking authentication...
+      </div>
+    );
+  }
 
-    fetchData();
-  }, [selectedUserId]);
-  useEffect(() => {
-    checkAuth();
-    if (!isAuthenticated) {
-      navigate("/");
-    }
-  }, []);
+  // -----------------------------
+  // Don't render chat if not authenticated
+  // -----------------------------
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <div className="flex min-h-screen  bg-background ">
+    <div className="flex min-h-screen bg-background">
+
       <Nav />
+
       <OnlineUsersList
         onlinePeople={onlinePeople}
         selectedUserId={selectedUserId}
         setSelectedUserId={setSelectedUserId}
         offlinePeople={offlinePeople}
       />
+
       <section className="w-[71%] lg:w-[62%] relative pb-10">
+
         {selectedUserId && (
           <TopBar
             selectedUserId={selectedUserId}
@@ -177,15 +277,20 @@ const ChatHome = () => {
           userDetails={userDetails}
           selectedUserId={selectedUserId}
         />
+
         <div className="absolute w-full bottom-0 flex justify-center items-center">
+
           <MessageInputForm
             newMessage={newMessage}
             setNewMessage={setNewMessage}
             sendMessage={sendMessage}
             selectedUserId={selectedUserId}
           />
+
         </div>
+
       </section>
+
     </div>
   );
 };

@@ -31,7 +31,7 @@ const allowedOrigins = [
   "http://localhost:5174",
   "http://localhost:5175",
   "http://localhost:4000",
-  "https://swift-chat-eta.vercel.app",
+  "https://swift-chat-eta.vercel.app/",
 ];
 const corsOptions = {
   origin: (origin, callback) => {
